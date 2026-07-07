@@ -1,0 +1,13 @@
+suite_version: "27.0.1"
+released_at: "2026-07-07T00:00:00Z"
+source_candidate: "bootstrap-seed"
+services:
+  job-service: "27.0.1"
+  csv-service: "27.0.1"
+  outcome-service: "27.0.1"
+  fulfillment-event-service: "27.0.1"
+libraries:
+  common: "27.0.1"
+  events: "27.0.1"
+  canonical: "27.0.1"
+  storage-utils: "27.0.1"

@@ -1,0 +1,37 @@
+suite_version: "27.0.1"
+validated_at: "2026-07-07T00:00:00Z"
+services:
+  job-service:
+    image: "europe-west2-docker.pkg.dev/c31-fwmtg-ci-prod/fwmtg-docker-release/census31-fwmt-job-service"
+    version: "27.0.1"
+    promote_to:
+      - dev
+      - int
+  csv-service:
+    image: "europe-west2-docker.pkg.dev/c31-fwmtg-ci-prod/fwmtg-docker-release/census31-fwmt-csv-service"
+    version: "27.0.1"
+    promote_to:
+      - dev
+      - int
+  outcome-service:
+    image: "europe-west2-docker.pkg.dev/c31-fwmtg-ci-prod/fwmtg-docker-release/census31-fwmt-outcome-service"
+    version: "27.0.1"
+    promote_to:
+      - dev
+      - int
+  fulfillment-event-service:
+    image: "europe-west2-docker.pkg.dev/c31-fwmtg-ci-prod/fwmtg-docker-release/census31-fwmt-fulfillment-event-service"
+    version: "27.0.1"
+    promote_to:
+      - dev
+      - int
+  tm-mock:
+    image: "europe-west2-docker.pkg.dev/c31-fwmtg-ci-prod/fwmtg-docker-release/census31-fwmt-tm-mock"
+    version: "27.0.1"
+    promote_to:
+      - dev
+libraries:
+  common: "27.0.1"
+  events: "27.0.1"
+  canonical: "27.0.1"
+  storage-utils: "27.0.1"

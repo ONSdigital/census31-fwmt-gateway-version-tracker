@@ -1,8 +1,8 @@
-suite_version: "27.0.1"
+suite_version: 27.0.1
 services:
-  job-service: "27.0.1"
-  csv-service: "27.0.1"
-  outcome-service: "27.0.1"
-  fulfillment-event-service: "27.0.1"
-  tm-mock: "27.0.1"
+  job-service: 27.0.2-rc.962615
+  csv-service: 27.0.1
+  outcome-service: 27.0.1
+  fulfillment-event-service: 27.0.1
+  tm-mock: 27.0.1
 status: promoted

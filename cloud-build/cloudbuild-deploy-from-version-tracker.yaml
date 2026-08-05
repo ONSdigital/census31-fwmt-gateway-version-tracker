@@ -12,8 +12,7 @@ steps:
       - |
         set -euo pipefail
 
-        apt-get update && apt-get install -y --no-install-recommends git python3-pip && rm -rf /var/lib/apt/lists/*
-        pip3 install --no-cache-dir pyyaml
+        apt-get update && apt-get install -y --no-install-recommends git python3-yaml && rm -rf /var/lib/apt/lists/*
 
         python3 - <<'PY'
         import os

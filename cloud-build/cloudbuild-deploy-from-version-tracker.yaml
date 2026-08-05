@@ -100,15 +100,15 @@ steps:
             print(f"Deploy trigger: services.{service_key} {old_version} -> {new_version} ({repo_name})")
         PY
 
-                if [[ ! -s /workspace/deploy-events.tsv ]]; then
-                    echo "No deploy events to publish"
-                    exit 0
-                fi
+        if [[ ! -s /workspace/deploy-events.tsv ]]; then
+          echo "No deploy events to publish"
+          exit 0
+        fi
 
-                while IFS=$'\t' read -r service_key repo_name old_version new_version; do
+        while IFS=$'\t' read -r service_key repo_name old_version new_version; do
           [[ -n "$service_key" ]] || continue
           gcloud pubsub topics publish \
             "projects/${_CI_PROJECT_ID}/topics/${_SERVICE_BUILD_EVENTS_TOPIC}" \
             --message="{}" \
-            --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS"
+            --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${_DEPLOY_ENV}"
         done < /workspace/deploy-events.tsv

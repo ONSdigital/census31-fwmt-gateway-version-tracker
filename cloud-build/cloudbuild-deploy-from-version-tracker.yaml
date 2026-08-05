@@ -13,6 +13,7 @@ steps:
         set -euo pipefail
 
         apt-get update && apt-get install -y --no-install-recommends git python3-yaml && rm -rf /var/lib/apt/lists/*
+        : > /workspace/deploy-events.tsv
 
         python3 - <<'PY'
         import os
@@ -43,7 +44,10 @@ steps:
             previous = yaml.safe_load(previous_raw) or {}
             previous_services = previous.get("services") or {}
         except subprocess.CalledProcessError:
-            print(f"No previous manifest found for {manifest_path}; skipping deploy event publish.")
+            print(
+                f"No previous manifest found for {manifest_path} (for example first run or shallow checkout); "
+                "skipping deploy event publish."
+            )
             sys.exit(0)
 
         supported_service_keys = {
@@ -84,7 +88,12 @@ steps:
             print(f"Deploy trigger: services.{service_key} {old_version} -> {new_version} ({repo_name})")
         PY
 
-        while IFS=$'\t' read -r service_key repo_name old_version new_version; do
+                if [[ ! -s /workspace/deploy-events.tsv ]]; then
+                    echo "No deploy events to publish"
+                    exit 0
+                fi
+
+                while IFS=$'\t' read -r service_key repo_name old_version new_version; do
           [[ -n "$service_key" ]] || continue
           gcloud pubsub topics publish \
             "projects/${_CI_PROJECT_ID}/topics/${_SERVICE_BUILD_EVENTS_TOPIC}" \

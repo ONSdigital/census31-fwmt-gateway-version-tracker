@@ -22,7 +22,13 @@ steps:
 
         import yaml
 
-        manifest_path = Path(os.environ["_VERSION_TRACKER_MANIFEST_PATH"])
+        trigger_name = os.environ.get("_TRIGGER_NAME", "")
+        manifest_path_value = os.environ.get("_VERSION_TRACKER_MANIFEST_PATH")
+        if not manifest_path_value:
+            manifest_path_value = "environments/dev.yaml" if trigger_name.endswith("-dev") else "environments/test.yaml"
+            print(f"_VERSION_TRACKER_MANIFEST_PATH not provided; defaulting to {manifest_path_value}")
+
+        manifest_path = Path(manifest_path_value)
         if not manifest_path.exists():
             raise FileNotFoundError(f"Version tracker manifest not found: {manifest_path}")
 

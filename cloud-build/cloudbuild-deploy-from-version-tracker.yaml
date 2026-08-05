@@ -26,8 +26,8 @@ steps:
 
         import yaml
 
-        trigger_name = os.environ.get("_TRIGGER_NAME", "")
-        deploy_env = (os.environ.get("_DEPLOY_ENV") or "").strip().lower()
+        trigger_name = os.environ.get("_TRIGGER_NAME") or os.environ.get("TRIGGER_NAME", "")
+        deploy_env = (os.environ.get("_DEPLOY_ENV") or os.environ.get("DEPLOY_ENV") or "").strip().lower()
         manifest_path_value = os.environ.get("_VERSION_TRACKER_MANIFEST_PATH")
         if not manifest_path_value:
             if deploy_env in ("dev", "test"):
@@ -74,6 +74,10 @@ steps:
                         "Set _VERSION_TRACKER_MANIFEST_PATH or _DEPLOY_ENV in trigger substitutions."
                     )
             print(f"_VERSION_TRACKER_MANIFEST_PATH not provided; defaulting to {manifest_path_value}")
+
+        # Persist inferred deploy env for shell publishing step.
+        inferred_env = "dev" if manifest_path_value.endswith("/dev.yaml") else "test"
+        Path("/workspace/deploy-env.txt").write_text(inferred_env, encoding="utf-8")
 
         manifest_path = Path(manifest_path_value)
         if not manifest_path.exists():
@@ -148,10 +152,25 @@ steps:
           exit 0
         fi
 
-        while IFS=$'\t' read -r service_key repo_name old_version new_version; do
+                DEPLOY_ENV_VALUE="${_DEPLOY_ENV:-}"
+                if [[ -z "$DEPLOY_ENV_VALUE" && -f /workspace/deploy-env.txt ]]; then
+                    DEPLOY_ENV_VALUE="$(cat /workspace/deploy-env.txt)"
+                fi
+                if [[ -z "$DEPLOY_ENV_VALUE" ]]; then
+                    case "${_TRIGGER_NAME:-${TRIGGER_NAME:-}}" in
+                        *-dev) DEPLOY_ENV_VALUE="dev" ;;
+                        *-test) DEPLOY_ENV_VALUE="test" ;;
+                    esac
+                fi
+                if [[ -z "$DEPLOY_ENV_VALUE" ]]; then
+                    echo "Unable to infer DEPLOY_ENV for publish attributes"
+                    exit 1
+                fi
+
+                while IFS=$'\t' read -r service_key repo_name old_version new_version; do
           [[ -n "$service_key" ]] || continue
           gcloud pubsub topics publish \
             "projects/${_CI_PROJECT_ID}/topics/${_SERVICE_BUILD_EVENTS_TOPIC}" \
             --message="{}" \
-            --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${_DEPLOY_ENV}"
+                        --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${DEPLOY_ENV_VALUE}"
         done < /workspace/deploy-events.tsv

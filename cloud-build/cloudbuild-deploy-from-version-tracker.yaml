@@ -37,10 +37,42 @@ steps:
             elif trigger_name.endswith("-test"):
                 manifest_path_value = "environments/test.yaml"
             else:
-                raise RuntimeError(
-                    "_VERSION_TRACKER_MANIFEST_PATH is missing and fallback could not be inferred. "
-                    "Set _VERSION_TRACKER_MANIFEST_PATH or _DEPLOY_ENV in trigger substitutions."
-                )
+                # Final fallback for misconfigured triggers: infer from manifest
+                # file changed in the current commit range.
+                changed_files = set()
+                diff_commands = [
+                    ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+                    ["git", "show", "--name-only", "--pretty=format:", "HEAD"],
+                ]
+                for cmd in diff_commands:
+                    try:
+                        output = subprocess.check_output(cmd, text=True)
+                        changed_files = {
+                            line.strip()
+                            for line in output.splitlines()
+                            if line.strip()
+                        }
+                        if changed_files:
+                            break
+                    except subprocess.CalledProcessError:
+                        continue
+
+                dev_changed = "environments/dev.yaml" in changed_files
+                test_changed = "environments/test.yaml" in changed_files
+
+                if dev_changed ^ test_changed:
+                    manifest_path_value = (
+                        "environments/dev.yaml" if dev_changed else "environments/test.yaml"
+                    )
+                    print(
+                        "_VERSION_TRACKER_MANIFEST_PATH/_DEPLOY_ENV missing; "
+                        f"inferred from changed file: {manifest_path_value}"
+                    )
+                else:
+                    raise RuntimeError(
+                        "_VERSION_TRACKER_MANIFEST_PATH is missing and fallback could not be inferred. "
+                        "Set _VERSION_TRACKER_MANIFEST_PATH or _DEPLOY_ENV in trigger substitutions."
+                    )
             print(f"_VERSION_TRACKER_MANIFEST_PATH not provided; defaulting to {manifest_path_value}")
 
         manifest_path = Path(manifest_path_value)

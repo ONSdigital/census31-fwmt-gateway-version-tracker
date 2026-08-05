@@ -26,15 +26,26 @@ steps:
 
         import yaml
 
-        trigger_name = os.environ.get("_TRIGGER_NAME") or os.environ.get("TRIGGER_NAME", "")
+        trigger_name = (
+            os.environ.get("_TRIGGER_NAME")
+            or os.environ.get("TRIGGER_NAME")
+            or os.environ.get("BUILD_TRIGGER_NAME", "")
+        )
+        trigger_name_lower = trigger_name.lower()
         deploy_env = (os.environ.get("_DEPLOY_ENV") or os.environ.get("DEPLOY_ENV") or "").strip().lower()
         manifest_path_value = os.environ.get("_VERSION_TRACKER_MANIFEST_PATH")
+
+        def is_env_manifest_path(path: str, env: str) -> bool:
+            normalized = path.strip().lstrip("./")
+            suffix = f"environments/{env}.yaml"
+            return normalized == suffix or normalized.endswith(f"/{suffix}")
+
         if not manifest_path_value:
             if deploy_env in ("dev", "test"):
                 manifest_path_value = f"environments/{deploy_env}.yaml"
-            elif trigger_name.endswith("-dev"):
+            elif "-dev" in trigger_name_lower:
                 manifest_path_value = "environments/dev.yaml"
-            elif trigger_name.endswith("-test"):
+            elif "-test" in trigger_name_lower:
                 manifest_path_value = "environments/test.yaml"
             else:
                 # Final fallback for misconfigured triggers: infer from manifest
@@ -57,8 +68,8 @@ steps:
                     except subprocess.CalledProcessError:
                         continue
 
-                dev_changed = "environments/dev.yaml" in changed_files
-                test_changed = "environments/test.yaml" in changed_files
+                dev_changed = any(is_env_manifest_path(path, "dev") for path in changed_files)
+                test_changed = any(is_env_manifest_path(path, "test") for path in changed_files)
 
                 if dev_changed ^ test_changed:
                     manifest_path_value = (

@@ -14,6 +14,9 @@ steps:
 
         apt-get update && apt-get install -y --no-install-recommends git python3-yaml && rm -rf /var/lib/apt/lists/*
         : > /workspace/deploy-events.tsv
+        # GitHub-triggered Cloud Build checkouts can be shallow. Fetch minimal
+        # history so we can compare against the previous manifest revision.
+        git fetch --no-tags --depth=2 origin "${BRANCH_NAME:-main}" || true
 
         python3 - <<'PY'
         import os
@@ -36,14 +39,23 @@ steps:
         current = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
         current_services = current.get("services") or {}
 
-        try:
-            previous_raw = subprocess.check_output(
-                ["git", "show", f"HEAD~1:{manifest_path.as_posix()}"],
-                text=True,
-            )
-            previous = yaml.safe_load(previous_raw) or {}
-            previous_services = previous.get("services") or {}
-        except subprocess.CalledProcessError:
+        branch_name = os.environ.get("BRANCH_NAME", "")
+        previous_specs = [f"HEAD~1:{manifest_path.as_posix()}"]
+        if branch_name:
+            previous_specs.append(f"origin/{branch_name}~1:{manifest_path.as_posix()}")
+
+        previous_services = None
+        for spec in previous_specs:
+            try:
+                previous_raw = subprocess.check_output(["git", "show", spec], text=True)
+                previous = yaml.safe_load(previous_raw) or {}
+                previous_services = previous.get("services") or {}
+                print(f"Using previous manifest from: {spec}")
+                break
+            except subprocess.CalledProcessError:
+                continue
+
+        if previous_services is None:
             print(
                 f"No previous manifest found for {manifest_path} (for example first run or shallow checkout); "
                 "skipping deploy event publish."

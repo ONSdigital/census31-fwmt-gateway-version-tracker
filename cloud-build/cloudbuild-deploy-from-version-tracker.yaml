@@ -152,17 +152,17 @@ steps:
           exit 0
         fi
 
-                DEPLOY_ENV_VALUE="${_DEPLOY_ENV:-}"
-                if [[ -z "$DEPLOY_ENV_VALUE" && -f /workspace/deploy-env.txt ]]; then
-                    DEPLOY_ENV_VALUE="$(cat /workspace/deploy-env.txt)"
+                deploy_env_value="${_DEPLOY_ENV:-}"
+                if [[ -z "$deploy_env_value" && -f /workspace/deploy-env.txt ]]; then
+                    deploy_env_value="$(cat /workspace/deploy-env.txt)"
                 fi
-                if [[ -z "$DEPLOY_ENV_VALUE" ]]; then
+                if [[ -z "$deploy_env_value" ]]; then
                     case "${_TRIGGER_NAME:-${TRIGGER_NAME:-}}" in
-                        *-dev) DEPLOY_ENV_VALUE="dev" ;;
-                        *-test) DEPLOY_ENV_VALUE="test" ;;
+                        *-dev) deploy_env_value="dev" ;;
+                        *-test) deploy_env_value="test" ;;
                     esac
                 fi
-                if [[ -z "$DEPLOY_ENV_VALUE" ]]; then
+                if [[ -z "$deploy_env_value" ]]; then
                     echo "Unable to infer DEPLOY_ENV for publish attributes"
                     exit 1
                 fi
@@ -172,5 +172,5 @@ steps:
           gcloud pubsub topics publish \
             "projects/${_CI_PROJECT_ID}/topics/${_SERVICE_BUILD_EVENTS_TOPIC}" \
             --message="{}" \
-                        --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${DEPLOY_ENV_VALUE}"
+                        --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${deploy_env_value}"
         done < /workspace/deploy-events.tsv

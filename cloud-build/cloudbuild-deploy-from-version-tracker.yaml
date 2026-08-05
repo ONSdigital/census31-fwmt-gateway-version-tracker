@@ -1,0 +1,88 @@
+timeout: 1200s
+options:
+  automapSubstitutions: true
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+
+steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: publish deploy events from manifest bumps
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+
+        apt-get update && apt-get install -y --no-install-recommends git python3-pip && rm -rf /var/lib/apt/lists/*
+        pip3 install --no-cache-dir pyyaml
+
+        python3 - <<'PY'
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        import yaml
+
+        manifest_path = Path(os.environ["_VERSION_TRACKER_MANIFEST_PATH"])
+        if not manifest_path.exists():
+            raise FileNotFoundError(f"Version tracker manifest not found: {manifest_path}")
+
+        current = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        current_services = current.get("services") or {}
+
+        try:
+            previous_raw = subprocess.check_output(
+                ["git", "show", f"HEAD~1:{manifest_path.as_posix()}"],
+                text=True,
+            )
+            previous = yaml.safe_load(previous_raw) or {}
+            previous_services = previous.get("services") or {}
+        except subprocess.CalledProcessError:
+            print(f"No previous manifest found for {manifest_path}; skipping deploy event publish.")
+            sys.exit(0)
+
+        supported_service_keys = {
+            "job-service": "census31-fwmt-job-service",
+            "csv-service": "census31-fwmt-csv-service",
+            "outcome-service": "census31-fwmt-outcome-service",
+            "fulfillment-event-service": "census31-fwmt-fulfillment-event-service",
+            "acceptance-tests": "census31-fwmt-acceptance-tests",
+        }
+
+        changed = []
+        for service_key, new_version in current_services.items():
+            old_version = previous_services.get(service_key)
+            if old_version == new_version or new_version in (None, ""):
+                continue
+
+            repo_name = supported_service_keys.get(service_key)
+            if repo_name is None and service_key.startswith("census31-fwmt-"):
+                repo_name = service_key
+
+            if repo_name is None:
+                print(f"Skipping unsupported manifest service key: {service_key}")
+                continue
+
+            changed.append((service_key, repo_name, str(old_version), str(new_version)))
+
+        if not changed:
+            print("No supported service version changes detected")
+            sys.exit(0)
+
+        output_path = Path("/workspace/deploy-events.tsv")
+        output_path.write_text(
+            "".join(f"{service_key}\t{repo_name}\t{old_version}\t{new_version}\n" for service_key, repo_name, old_version, new_version in changed),
+            encoding="utf-8",
+        )
+
+        for service_key, repo_name, old_version, new_version in changed:
+            print(f"Deploy trigger: services.{service_key} {old_version} -> {new_version} ({repo_name})")
+        PY
+
+        while IFS=$'\t' read -r service_key repo_name old_version new_version; do
+          [[ -n "$service_key" ]] || continue
+          gcloud pubsub topics publish \
+            "projects/${_CI_PROJECT_ID}/topics/${_SERVICE_BUILD_EVENTS_TOPIC}" \
+            --message="{}" \
+            --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS"
+        done < /workspace/deploy-events.tsv

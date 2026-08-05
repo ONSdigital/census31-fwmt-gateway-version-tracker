@@ -7,6 +7,10 @@ steps:
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: publish deploy events from manifest bumps
     entrypoint: bash
+    env:
+      - DEPLOY_ENV_SUB=${_DEPLOY_ENV}
+      - VERSION_TRACKER_MANIFEST_PATH_SUB=${_VERSION_TRACKER_MANIFEST_PATH}
+      - TRIGGER_NAME_SUB=${_TRIGGER_NAME}
     args:
       - -c
       - |
@@ -20,68 +24,31 @@ steps:
 
         python3 - <<'PY'
         import os
-        import json
         import subprocess
         import sys
         from pathlib import Path
 
         import yaml
 
-        def _run_capture(cmd):
-            try:
-                return subprocess.check_output(cmd, text=True).strip()
-            except subprocess.CalledProcessError:
-                return ""
-
-        def infer_trigger_name_from_build_metadata() -> str:
-            build_id = os.environ.get("BUILD_ID", "").strip()
-            project_id = (os.environ.get("PROJECT_ID") or os.environ.get("_CI_PROJECT_ID") or "").strip()
-            if not build_id or not project_id:
-                return ""
-
-            # Try both regional and non-regional describe calls.
-            build_json = ""
-            region = (os.environ.get("_REGION") or os.environ.get("REGION") or "europe-west2").strip()
-            describe_cmds = [
-                ["gcloud", "builds", "describe", build_id, "--project", project_id, "--region", region, "--format=json"],
-                ["gcloud", "builds", "describe", build_id, "--project", project_id, "--format=json"],
-            ]
-            for cmd in describe_cmds:
-                build_json = _run_capture(cmd)
-                if build_json:
-                    break
-            if not build_json:
-                return ""
-
-            try:
-                build = json.loads(build_json)
-            except json.JSONDecodeError:
-                return ""
-
-            trigger_id = str(build.get("buildTriggerId") or "").strip()
-            if not trigger_id:
-                return ""
-
-            trigger_cmds = [
-                ["gcloud", "builds", "triggers", "describe", trigger_id, "--project", project_id, "--region", region, "--format=value(name)"],
-                ["gcloud", "builds", "triggers", "describe", trigger_id, "--project", project_id, "--format=value(name)"],
-            ]
-            for cmd in trigger_cmds:
-                trigger_name_value = _run_capture(cmd)
-                if trigger_name_value:
-                    return trigger_name_value
-            return ""
-
         trigger_name = (
-            os.environ.get("_TRIGGER_NAME")
+            os.environ.get("TRIGGER_NAME_SUB")
+            or os.environ.get("_TRIGGER_NAME")
             or os.environ.get("TRIGGER_NAME")
             or os.environ.get("BUILD_TRIGGER_NAME")
-            or infer_trigger_name_from_build_metadata()
             or ""
         )
         trigger_name_lower = trigger_name.lower()
-        deploy_env = (os.environ.get("_DEPLOY_ENV") or os.environ.get("DEPLOY_ENV") or "").strip().lower()
-        manifest_path_value = os.environ.get("_VERSION_TRACKER_MANIFEST_PATH")
+        deploy_env = (
+            os.environ.get("DEPLOY_ENV_SUB")
+            or os.environ.get("_DEPLOY_ENV")
+            or os.environ.get("DEPLOY_ENV")
+            or ""
+        ).strip().lower()
+        manifest_path_value = (
+            os.environ.get("VERSION_TRACKER_MANIFEST_PATH_SUB")
+            or os.environ.get("_VERSION_TRACKER_MANIFEST_PATH")
+            or ""
+        ).strip()
 
         def is_env_manifest_path(path: str, env: str) -> bool:
             normalized = path.strip().lstrip("./")
@@ -198,7 +165,10 @@ steps:
 
         output_path = Path("/workspace/deploy-events.tsv")
         output_path.write_text(
-            "".join(f"{service_key}\t{repo_name}\t{old_version}\t{new_version}\n" for service_key, repo_name, old_version, new_version in changed),
+            "".join(
+                f"{service_key}\t{repo_name}\t{old_version}\t{new_version}\n"
+                for service_key, repo_name, old_version, new_version in changed
+            ),
             encoding="utf-8",
         )
 
@@ -211,25 +181,25 @@ steps:
           exit 0
         fi
 
-                deploy_env_value="${_DEPLOY_ENV:-}"
-                if [[ -z "$deploy_env_value" && -f /workspace/deploy-env.txt ]]; then
-                    deploy_env_value="$(cat /workspace/deploy-env.txt)"
-                fi
-                if [[ -z "$deploy_env_value" ]]; then
-                    case "${_TRIGGER_NAME:-${TRIGGER_NAME:-${BUILD_TRIGGER_NAME:-}}}" in
-                        *-dev) deploy_env_value="dev" ;;
-                        *-test) deploy_env_value="test" ;;
-                    esac
-                fi
-                if [[ -z "$deploy_env_value" ]]; then
-                    echo "Unable to infer DEPLOY_ENV for publish attributes"
-                    exit 1
-                fi
+        deploy_env_value="${DEPLOY_ENV_SUB:-${_DEPLOY_ENV:-}}"
+        if [[ -z "$deploy_env_value" && -f /workspace/deploy-env.txt ]]; then
+          deploy_env_value="$(cat /workspace/deploy-env.txt)"
+        fi
+        if [[ -z "$deploy_env_value" ]]; then
+          case "${TRIGGER_NAME_SUB:-${_TRIGGER_NAME:-${TRIGGER_NAME:-${BUILD_TRIGGER_NAME:-}}}}" in
+            *-dev) deploy_env_value="dev" ;;
+            *-test) deploy_env_value="test" ;;
+          esac
+        fi
+        if [[ -z "$deploy_env_value" ]]; then
+          echo "Unable to infer DEPLOY_ENV for publish attributes"
+          exit 1
+        fi
 
-                while IFS=$'\t' read -r service_key repo_name old_version new_version; do
+        while IFS=$'\t' read -r service_key repo_name old_version new_version; do
           [[ -n "$service_key" ]] || continue
           gcloud pubsub topics publish \
             "projects/${_CI_PROJECT_ID}/topics/${_SERVICE_BUILD_EVENTS_TOPIC}" \
             --message="{}" \
-                        --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${deploy_env_value}"
+            --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${deploy_env_value}"
         done < /workspace/deploy-events.tsv

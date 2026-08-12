@@ -30,14 +30,6 @@ steps:
 
         import yaml
 
-        trigger_name = (
-            os.environ.get("TRIGGER_NAME_SUB")
-            or os.environ.get("_TRIGGER_NAME")
-            or os.environ.get("TRIGGER_NAME")
-            or os.environ.get("BUILD_TRIGGER_NAME")
-            or ""
-        )
-        trigger_name_lower = trigger_name.lower()
         deploy_env = (
             os.environ.get("DEPLOY_ENV_SUB")
             or os.environ.get("_DEPLOY_ENV")
@@ -50,60 +42,26 @@ steps:
             or ""
         ).strip()
 
-        def is_env_manifest_path(path: str, env: str) -> bool:
-            normalized = path.strip().lstrip("./")
-            suffix = f"environments/{env}.yaml"
-            return normalized == suffix or normalized.endswith(f"/{suffix}")
-
         if not manifest_path_value:
-            if deploy_env in ("dev", "test"):
-                manifest_path_value = f"environments/{deploy_env}.yaml"
-            elif "-dev" in trigger_name_lower:
-                manifest_path_value = "environments/dev.yaml"
-            elif "-test" in trigger_name_lower:
-                manifest_path_value = "environments/test.yaml"
-            else:
-                # Final fallback for misconfigured triggers: infer from manifest
-                # file changed in the current commit range.
-                changed_files = set()
-                diff_commands = [
-                    ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
-                    ["git", "show", "--name-only", "--pretty=format:", "HEAD"],
-                ]
-                for cmd in diff_commands:
-                    try:
-                        output = subprocess.check_output(cmd, text=True)
-                        changed_files = {
-                            line.strip()
-                            for line in output.splitlines()
-                            if line.strip()
-                        }
-                        if changed_files:
-                            break
-                    except subprocess.CalledProcessError:
-                        continue
+            raise RuntimeError(
+                "Missing version tracker manifest path. Set _VERSION_TRACKER_MANIFEST_PATH in trigger substitutions."
+            )
 
-                dev_changed = any(is_env_manifest_path(path, "dev") for path in changed_files)
-                test_changed = any(is_env_manifest_path(path, "test") for path in changed_files)
+        if not deploy_env:
+            if manifest_path_value.endswith("/dev.yaml"):
+                deploy_env = "dev"
+            elif manifest_path_value.endswith("/test.yaml"):
+                deploy_env = "test"
+            elif manifest_path_value.endswith("/int.yaml"):
+                deploy_env = "int"
 
-                if dev_changed ^ test_changed:
-                    manifest_path_value = (
-                        "environments/dev.yaml" if dev_changed else "environments/test.yaml"
-                    )
-                    print(
-                        "_VERSION_TRACKER_MANIFEST_PATH/_DEPLOY_ENV missing; "
-                        f"inferred from changed file: {manifest_path_value}"
-                    )
-                else:
-                    raise RuntimeError(
-                        "_VERSION_TRACKER_MANIFEST_PATH is missing and fallback could not be inferred. "
-                        "Set _VERSION_TRACKER_MANIFEST_PATH or _DEPLOY_ENV in trigger substitutions."
-                    )
-            print(f"_VERSION_TRACKER_MANIFEST_PATH not provided; defaulting to {manifest_path_value}")
+        if deploy_env not in ("dev", "test", "int"):
+            raise RuntimeError(
+                "Missing deploy env. Set _DEPLOY_ENV to 'dev', 'test', or 'int' in trigger substitutions."
+            )
 
-        # Persist inferred deploy env for shell publishing step.
-        inferred_env = "dev" if manifest_path_value.endswith("/dev.yaml") else "test"
-        Path("/workspace/deploy-env.txt").write_text(inferred_env, encoding="utf-8")
+        # Persist deploy env for shell publish step.
+        Path("/workspace/deploy-env.txt").write_text(deploy_env, encoding="utf-8")
 
         manifest_path = Path(manifest_path_value)
         if not manifest_path.exists():
@@ -131,9 +89,9 @@ steps:
         if previous_services is None:
             print(
                 f"No previous manifest found for {manifest_path} (for example first run or shallow checkout); "
-                "skipping deploy event publish."
+                "treating all current services as new/changed."
             )
-            sys.exit(0)
+            previous_services = {}
 
         supported_service_keys = {
             "job-service": "census31-fwmt-job-service",
@@ -184,12 +142,6 @@ steps:
         deploy_env_value="${DEPLOY_ENV_SUB:-${_DEPLOY_ENV:-}}"
         if [[ -z "$deploy_env_value" && -f /workspace/deploy-env.txt ]]; then
           deploy_env_value="$(cat /workspace/deploy-env.txt)"
-        fi
-        if [[ -z "$deploy_env_value" ]]; then
-          case "${TRIGGER_NAME_SUB:-${_TRIGGER_NAME:-${TRIGGER_NAME:-${BUILD_TRIGGER_NAME:-}}}}" in
-            *-dev) deploy_env_value="dev" ;;
-            *-test) deploy_env_value="test" ;;
-          esac
         fi
         if [[ -z "$deploy_env_value" ]]; then
           echo "Unable to infer DEPLOY_ENV for publish attributes"

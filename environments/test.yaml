@@ -3,6 +3,6 @@ services:
   job-service: 27.0.2-rc.294738
   csv-service: 27.0.3-RC
   outcome-service: 27.0.2-rc.518046
-  fulfillment-event-service: 27.0.1-rc.114004
+  fulfillment-event-service: 27.0.3-RC
   tm-mock: 27.0.1
 status: promoted

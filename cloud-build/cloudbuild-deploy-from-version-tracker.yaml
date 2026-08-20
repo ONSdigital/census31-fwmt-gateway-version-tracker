@@ -99,6 +99,7 @@ steps:
             "outcome-service": "census31-fwmt-outcome-service",
             "fulfillment-event-service": "census31-fwmt-fulfillment-event-service",
             "acceptance-tests": "census31-fwmt-acceptance-tests",
+            "tm-mock": "census31-fwmt-tm-mock",
         }
 
         changed = []

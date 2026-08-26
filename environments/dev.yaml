@@ -1,4 +1,4 @@
-suite_version: "27.0.1a"
+suite_version: "27.0.1"
 services:
   job-service: 27.0.3-RC
   csv-service: 27.0.3-RC

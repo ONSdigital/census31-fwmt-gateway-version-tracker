@@ -6,4 +6,4 @@ services:
   fulfillment-event-service: 27.0.3-RC
   tm-mock: 27.0.3-RC
   acceptance-tests: 4.0.0-RC
-status: promoted
+status: promoted 

@@ -1,4 +1,4 @@
-suite_version: "27.0.1"
+suite_version: "27.0.2"
 services:
   job-service: sha256:7c2114440695c8e22b4a0d350f9c06f861d7e712fef896ee0d5d0cfba7e2620c
   csv-service: 27.0.3-RC

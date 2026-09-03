@@ -1,9 +1,9 @@
 suite_version: "27.0.2"
 services:
-  job-service: 27.0.2-rc.666815
+  job-service: sha256:7c2114440695c8e22b4a0d350f9c06f861d7e712fef896ee0d5d0cfba7e2620c
   csv-service: 27.0.3-RC
-  outcome-service: 27.0.2-rc.626240
+  outcome-service: sha256:27a3c14842e916d170a8fc1831b9aabf2ad273095c847a4501fa24a486509467
   fulfillment-event-service: sha256:1b1f9c1c05ba0d54b658d758851c7b93e35fa732e3b4956f568514e67c644dca
-  tm-mock: 27.0.1-rc.300872
+  tm-mock: sha256:8c782d405eedbb3b60b0214b4dcd80d4773319b9fef7f64691e48a00b0602d9c
   acceptance-tests: 4.0.0-RC
 status: promoted 

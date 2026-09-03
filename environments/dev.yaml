@@ -3,7 +3,7 @@ services:
   job-service: 27.0.2-rc.666815
   csv-service: 27.0.3-RC
   outcome-service: 27.0.2-rc.626240
-  fulfillment-event-service: sha256:1b1f9c1c05ba0d54b658d758851c7b93e35fa732e3b4956f568514e67c644dca
+  fulfillment-event-service: sha256:415b235a737a5824006437c4684234db110b9edbcbc71587d8f28cf017f5abf2
   tm-mock: 27.0.1-rc.300872
   acceptance-tests: 4.0.0-RC
 status: promoted 

@@ -1,6 +1,6 @@
 suite_version: "27.0.2"
 services:
-  job-service: 27.0.3-RC
+  job-service: 27.0.2-rc.294738
   csv-service: 27.0.3-RC
   outcome-service: sha256:27a3c14842e916d170a8fc1831b9aabf2ad273095c847a4501fa24a486509467
   fulfillment-event-service: sha256:1b1f9c1c05ba0d54b658d758851c7b93e35fa732e3b4956f568514e67c644dca

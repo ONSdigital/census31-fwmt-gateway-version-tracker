@@ -4,6 +4,6 @@ services:
   csv-service: 27.0.3-RC
   outcome-service: 27.0.3-RC
   fulfillment-event-service: 27.0.3-RC
-  tm-mock: 27.0.3-RC
+  tm-mock: sha256:8c782d405eedbb3b60b0214b4dcd80d4773319b9fef7f64691e48a00b0602d9c
   acceptance-tests: 4.0.0-RC
 status: promoted

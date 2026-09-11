@@ -1,6 +1,6 @@
 suite_version: 27.0.1
 services:
-  job-service: 27.0.5
+  job-service: 27.0.6-RC
   csv-service: 27.0.9
   outcome-service: 27.0.9
   fulfillment-event-service: 27.0.12

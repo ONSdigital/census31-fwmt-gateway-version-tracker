@@ -11,6 +11,8 @@ steps:
       - DEPLOY_ENV_SUB=${_DEPLOY_ENV}
       - VERSION_TRACKER_MANIFEST_PATH_SUB=${_VERSION_TRACKER_MANIFEST_PATH}
       - TRIGGER_NAME_SUB=${_TRIGGER_NAME}
+      - BUILD_ID_SUB=$BUILD_ID
+      - COMMIT_SHA_SUB=$COMMIT_SHA
     args:
       - -c
       - |
@@ -149,12 +151,12 @@ steps:
           exit 1
         fi
 
-                deploy_request_id="${BUILD_ID:-${COMMIT_SHA:-}}"
+        deploy_request_id="${BUILD_ID_SUB:-${COMMIT_SHA_SUB:-}}"
 
         while IFS=$'\t' read -r service_key repo_name old_version new_version; do
           [[ -n "$service_key" ]] || continue
           gcloud pubsub topics publish \
             "projects/${_CI_PROJECT_ID}/topics/${_SERVICE_BUILD_EVENTS_TOPIC}" \
             --message="{}" \
-                        --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${deploy_env_value},DEPLOY_REQUEST_ID=${deploy_request_id},VERSION_TRACKER_COMMIT=${COMMIT_SHA:-}"
+            --attribute="REPO_NAME=$repo_name,SHORT_SHA=$new_version,STATUS=SUCCESS,DEPLOY_REQUESTED=true,DEPLOY_ENV=${deploy_env_value},DEPLOY_REQUEST_ID=${deploy_request_id},VERSION_TRACKER_COMMIT=${COMMIT_SHA_SUB:-}"
         done < /workspace/deploy-events.tsv

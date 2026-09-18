@@ -56,10 +56,12 @@ steps:
                 deploy_env = "test"
             elif manifest_path_value.endswith("/int.yaml"):
                 deploy_env = "int"
+            elif manifest_path_value.endswith("/sit.yaml"):
+                deploy_env = "sit"
 
-        if deploy_env not in ("dev", "test", "int"):
+        if deploy_env not in ("dev", "test", "int", "sit"):
             raise RuntimeError(
-                "Missing deploy env. Set _DEPLOY_ENV to 'dev', 'test', or 'int' in trigger substitutions."
+                "Missing deploy env. Set _DEPLOY_ENV to 'dev', 'test', 'int', or 'sit' in trigger substitutions."
             )
 
         # Persist deploy env for shell publish step.

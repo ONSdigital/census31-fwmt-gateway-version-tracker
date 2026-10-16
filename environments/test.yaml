@@ -2,8 +2,8 @@ suite_version: 27.0.1
 services:
   job-service: 27.0.20
   csv-service: 27.0.12
-  outcome-service: 27.0.21-RC
-  fulfillment-event-service: 27.0.19-RC
+  outcome-service: 27.0.21
+  fulfillment-event-service: 27.0.19
   tm-mock: 27.0.9
-  acceptance-tests: 4.0.21-RC
+  acceptance-tests: 4.0.21
 status: promoted

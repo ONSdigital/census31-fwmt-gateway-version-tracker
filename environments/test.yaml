@@ -5,5 +5,5 @@ services:
   outcome-service: 27.0.22-RC
   fulfillment-event-service: 27.0.21-RC
   tm-mock: 27.0.10-RC
-  acceptance-tests: 4.0.23-RC
+  acceptance-tests: 4.0.24-RC
 status: promoted

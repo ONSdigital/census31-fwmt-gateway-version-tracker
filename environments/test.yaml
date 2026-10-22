@@ -2,7 +2,7 @@ suite_version: 27.0.2
 services:
   job-service: 27.0.23
   csv-service: 27.0.13
-  outcome-service: 27.0.24
+  outcome-service: 27.0.25-RC
   fulfillment-event-service: 27.0.21
   tm-mock: 27.0.10
   acceptance-tests: 4.0.27-RC

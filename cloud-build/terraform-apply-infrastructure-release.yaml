@@ -1,0 +1,60 @@
+timeout: 1200s
+tags: ["census31-fwmtg"]
+options:
+  automapSubstitutions: true
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+
+steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: apply selected infrastructure release
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        apt-get update -qq && apt-get install -y -qq python3-yaml
+
+        manifest_path="${_VERSION_TRACKER_MANIFEST_PATH}"
+        git fetch --no-tags --depth=2 origin "${BRANCH_NAME:-main}" || true
+
+        current_version=$$(python3 - "$${manifest_path}" "${_VERSION_TRACKER_ITEM}" <<'PY'
+        import sys
+        from pathlib import Path
+        import yaml
+
+        manifest = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8")) or {}
+        version = manifest.get(sys.argv[2])
+        if not version:
+          raise SystemExit(f"Missing {sys.argv[2]} in {sys.argv[1]}")
+        print(version)
+        PY
+        )
+
+        previous_version=""
+        if git show "HEAD~1:$${manifest_path}" > /workspace/previous-manifest.yaml 2>/dev/null; then
+          previous_version=$$(python3 - /workspace/previous-manifest.yaml "${_VERSION_TRACKER_ITEM}" <<'PY'
+        import sys
+        from pathlib import Path
+        import yaml
+
+        manifest = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8")) or {}
+        print(manifest.get(sys.argv[2], ""))
+        PY
+          )
+        fi
+        if [[ "$$current_version" == "$$previous_version" ]]; then
+          echo "${_VERSION_TRACKER_ITEM} did not change; skipping apply"
+          exit 0
+        fi
+
+        release_uri="gs://${_RELEASES_BUCKET}/releases/${_REPO_NAME}/${_REPO_NAME}-$$current_version"
+        gsutil -m cp -r "$$release_uri/terraform" /workspace/terraform
+        mkdir -p /workspace/bin
+        terraform_version=$$(grep -E 'required_version\s*=' /workspace/terraform/main.tf | sed -E 's/.*=\s*"([^"]+)".*/\1/')
+        gsutil cp "gs://${_BINARIES_BUCKET}/terraform-$$terraform_version" /workspace/bin/terraform
+        chmod +x /workspace/bin/terraform
+        export PATH=/workspace/bin:$$PATH
+        cd /workspace/terraform
+        terraform init -backend-config="bucket=${_STATE_BUCKET}"
+        terraform validate
+        terraform apply -auto-approve

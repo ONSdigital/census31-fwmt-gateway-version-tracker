@@ -7,4 +7,4 @@ services:
   tm-mock: 27.0.10
   acceptance-tests: 4.0.28
 status: promoted
-infrastructure: 27.0.0
+infrastructure: 27.0.1

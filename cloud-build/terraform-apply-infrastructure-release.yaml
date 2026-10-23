@@ -48,7 +48,8 @@ steps:
         fi
 
         release_uri="gs://${_RELEASES_BUCKET}/releases/${_REPO_NAME}/${_REPO_NAME}-$$current_version"
-        gsutil -m cp -r "$$release_uri/terraform" /workspace/terraform
+        mkdir -p /workspace/terraform
+        gsutil -m cp -r "$$release_uri/terraform/*" /workspace/terraform/
         mkdir -p /workspace/bin
         terraform_version=$$(grep -E 'required_version\s*=' /workspace/terraform/main.tf | sed -E 's/.*=\s*"([^"]+)".*/\1/')
         gsutil cp "gs://${_BINARIES_BUCKET}/terraform-$$terraform_version" /workspace/bin/terraform

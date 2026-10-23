@@ -56,6 +56,12 @@ steps:
         chmod +x /workspace/bin/terraform
         export PATH=/workspace/bin:$$PATH
         cd /workspace/terraform
-        terraform init -backend-config="bucket=${_STATE_BUCKET}"
+        deploy_env=$$(basename "$$manifest_path" .yaml)
+        tfvars_path="env/$$deploy_env.tfvars"
+        if [[ ! -f "$$tfvars_path" ]]; then
+          echo "Missing Terraform variable file: $$tfvars_path (manifest: $$manifest_path)" >&2
+          exit 1
+        fi
+        terraform init -input=false -backend-config="bucket=${_STATE_BUCKET}"
         terraform validate
-        terraform apply -auto-approve
+        terraform apply -input=false -auto-approve -var-file="$$tfvars_path"
